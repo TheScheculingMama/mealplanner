@@ -1,0 +1,759 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Scheduling Mama Planner</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Use Inter font -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fb; /* Light background */
+        }
+        .scroll-area {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        /* Custom scrollbar for aesthetics */
+        .scroll-area::-webkit-scrollbar {
+            width: 8px;
+        }
+        .scroll-area::-webkit-scrollbar-thumb {
+            background-color: #a7f3d0; /* Light green thumb */
+            border-radius: 4px;
+        }
+        .scroll-area::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        /* Fade-in for the shopping list */
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+    <!-- Custom styling for meal cards (Tailwind only) -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'mama-primary': '#06b6d4', /* Cyan 600 */
+                        'mama-secondary': '#10b981', /* Emerald 500 */
+                        'mama-light': '#f0fdf4', /* Green 50 */
+                        'mama-neutral': '#e2e8f0', /* Slate 200 */
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="p-4 md:p-8 min-h-screen">
+
+    <div id="app" class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <header class="text-center mb-8 p-4 bg-white shadow-lg rounded-xl">
+            <h1 class="text-4xl font-extrabold text-mama-primary tracking-tight">
+                The Scheduling Mama Planner
+            </h1>
+            <p class="mt-2 text-xl text-gray-600">
+                Helping you get back your time, one minute at a time.
+            </p>
+            <p id="auth-status" class="mt-2 text-sm text-gray-400">Loading user...</p>
+        </header>
+
+        <!-- Share Status/Modal Area -->
+        <div id="share-info-container" class="mb-6 p-4 bg-mama-light rounded-xl shadow-inner hidden">
+             <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+                 <p class="text-sm font-medium text-gray-700">
+                     Share Code: <span id="share-code-display" class="font-mono text-mama-secondary bg-white p-1 rounded-md">---</span>
+                     <span id="share-mode-info" class="text-xs text-red-500 ml-3 hidden"> (Viewing Shared Plan)</span>
+                 </p>
+                 <button id="copy-share-btn" onclick="copyShareCode()"
+                         class="px-4 py-2 bg-mama-secondary text-white text-sm font-semibold rounded-lg hover:bg-emerald-600 transition duration-300 shadow-md flex items-center">
+                     <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2.5M16 11H8m4 0h4m-4 4h4m-4 4h4"></path></svg>
+                     Copy Share Code
+                 </button>
+             </div>
+        </div>
+
+        <!-- Main Grid for Ideas and Schedule -->
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-8">
+
+            <!-- 1. Meal Idea Management (Col 1-2) -->
+            <div class="md:col-span-2 bg-white p-6 shadow-xl rounded-xl border border-mama-neutral/50">
+                <h2 class="text-2xl font-bold mb-4 text-mama-secondary flex items-center">
+                    <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    Meal Idea Bank
+                </h2>
+
+                <!-- Add New Meal Form -->
+                <div class="mb-6 p-4 bg-mama-light rounded-lg">
+                    <input type="text" id="new-meal-input" placeholder="e.g., One-Pot Lemon Chicken"
+                           class="w-full p-3 border border-mama-neutral rounded-lg focus:ring-2 focus:ring-mama-primary focus:border-mama-primary transition duration-150">
+                    <button id="add-meal-btn" onclick="addMealIdea()"
+                            class="mt-3 w-full p-3 bg-mama-primary text-white font-semibold rounded-lg hover:bg-cyan-700 transition duration-300 shadow-md">
+                        Add Meal Idea
+                    </button>
+                </div>
+
+                <!-- Meal List -->
+                <p class="text-lg font-semibold text-gray-700 mb-2">Available Meals:</p>
+                <div id="meal-ideas-list" class="scroll-area border border-mama-neutral rounded-lg p-3 bg-gray-50">
+                    <!-- Meal ideas will be injected here -->
+                    <p class="text-gray-500 text-center py-4" id="loading-meals">Loading meal ideas...</p>
+                </div>
+            </div>
+
+            <!-- 2. Weekly Schedule (Col 3-5) -->
+            <div class="md:col-span-3 bg-white p-6 shadow-xl rounded-xl border border-mama-neutral/50">
+                <h2 class="text-2xl font-bold mb-4 text-mama-secondary flex items-center">
+                    <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h.01M17 11h.01M9 15h.01M15 15h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                    Weekly Meal Plan
+                </h2>
+
+                <!-- Schedule Controls -->
+                <div class="mb-4 flex flex-wrap gap-2">
+                    <select id="meal-selector" class="flex-grow p-3 border border-mama-neutral rounded-lg focus:ring-2 focus:ring-mama-primary">
+                        <option value="">Select a meal to schedule...</option>
+                    </select>
+                    <button id="clear-schedule-btn" onclick="clearSchedule()" class="p-3 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition duration-300 font-medium whitespace-nowrap">
+                        Clear Week
+                    </button>
+                    <button id="generate-share-btn" onclick="generateShareCode()" class="p-3 bg-green-100 text-green-600 rounded-lg hover:bg-green-200 transition duration-300 font-medium whitespace-nowrap">
+                        <span id="share-btn-text">Share My Schedule</span>
+                    </button>
+                    <!-- NEW: Shopping List Button -->
+                    <button id="generate-list-btn" onclick="generateShoppingList()" class="p-3 bg-mama-secondary text-white rounded-lg hover:bg-emerald-600 transition duration-300 font-medium whitespace-nowrap flex items-center">
+                        <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                        Generate List
+                    </button>
+                </div>
+
+                <!-- Weekly Schedule Grid -->
+                <div id="weekly-schedule-grid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+                    <!-- Schedule items will be injected here -->
+                    <p class="text-gray-500 text-center col-span-full py-8" id="loading-schedule">Loading schedule...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- NEW: Shopping List Section (Now Editable) -->
+        <div id="shopping-list-section" class="mt-8 bg-white p-6 shadow-xl rounded-xl border border-mama-neutral/50 hidden fade-in">
+            <div class="flex justify-between items-center mb-4 border-b pb-2">
+                <h2 class="text-2xl font-bold text-mama-primary flex items-center">
+                    <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2m-9 4h6m-6 4h6m-6 4h6"></path></svg>
+                    Your Weekly Shopping List
+                </h2>
+                <div class="flex space-x-2">
+                    <button onclick="addEmptyShoppingListItem()"
+                            class="px-4 py-2 bg-mama-secondary text-white text-sm font-semibold rounded-lg hover:bg-emerald-600 transition duration-300 shadow-md">
+                        + Add Item
+                    </button>
+                    <button onclick="copyShoppingList()"
+                            class="px-4 py-2 bg-cyan-100 text-mama-primary text-sm font-semibold rounded-lg hover:bg-cyan-200 transition duration-300 shadow-md">
+                        Copy List
+                    </button>
+                </div>
+            </div>
+            <div id="shopping-list-content" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <p class="text-gray-500 italic md:col-span-2">List will appear here after generation.</p>
+            </div>
+        </div>
+
+        <!-- Notification Message Box (used instead of alert/confirm) -->
+        <div id="notification-box" class="fixed bottom-4 right-4 p-4 rounded-lg shadow-xl text-white transition-opacity duration-300 opacity-0 pointer-events-none z-50"></div>
+    </div>
+
+    <!-- Firebase Imports -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot, collection, query, addDoc, deleteDoc, serverTimestamp, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global variables for Firebase services and app context
+        let app, db, auth, userId;
+        let mealIdeas = [];
+        let weeklySchedule = {};
+        let schedulePath = null; // Stores the current doc reference path for sharing
+        let isSharedMode = false; // Flag to check if we are viewing a shared schedule
+        let currentShoppingListText = ""; // Holds the plain text list for copying
+        let currentShoppingListItems = []; // Holds the editable list items
+
+        // Day order for the week
+        const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+        // Mock Ingredient Lookup for the promotional app
+        // IMPORTANT: Added 'wings' to be more specific than 'chicken'
+        const MOCK_INGREDIENTS_MAP = {
+            'taco': ['Ground Beef (1lb)', 'Taco Seasoning', 'Tortillas', 'Shredded Cheese', 'Salsa'],
+            'chili': ['Kidney Beans (2 cans)', 'Diced Tomatoes (1 can)', 'Ground Turkey', 'Chili Powder', 'Onion'],
+            'wings': ['Chicken Wings (2lbs)', 'Garlic', 'Butter', 'Hot Sauce (optional)', 'Oil'], // Specific wings fix
+            'chicken': ['Chicken Breasts (4)', 'Lemon', 'Potatoes', 'Garlic', 'Olive Oil'], // General chicken
+            'salmon': ['Salmon Fillets (4)', 'Asparagus', 'Foil', 'Dill', 'Butter'],
+            'pizza': ['Pizza Dough', 'Tomato Sauce', 'Mozzarella Cheese', 'Pepperoni'],
+            'pasta': ['Spaghetti (1 box)', 'Jarred Sauce (1)', 'Meatballs (Frozen)', 'Parmesan Cheese'],
+            'soup': ['Broth (box)', 'Carrots', 'Celery', 'Noodles'],
+            'burger': ['Ground Beef (Patties)', 'Buns', 'Lettuce/Tomato', 'Ketchup/Mustard'],
+            'default': ['Pantry staples', 'Fresh produce', 'A treat for yourself']
+        };
+
+
+        // --- Utility Functions ---
+
+        /** Shows a temporary notification message */
+        function showNotification(message, isError = false) {
+            const box = document.getElementById('notification-box');
+            box.textContent = message;
+            box.classList.remove('opacity-0', 'pointer-events-none', 'bg-red-500', 'bg-green-500');
+            box.classList.add(isError ? 'bg-red-500' : 'bg-green-500');
+
+            // Show and then hide
+            setTimeout(() => {
+                box.classList.add('opacity-0', 'pointer-events-none');
+            }, 3000);
+        }
+
+        /** Parses the URL query parameters to check for a share code. */
+        function getShareCodeFromUrl() {
+            const params = new URLSearchParams(window.location.search);
+            return params.get('share');
+        }
+
+        // --- Firebase Initialization and Authentication ---
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        if (firebaseConfig) {
+            setLogLevel('Debug');
+            app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+        } else {
+            document.getElementById('auth-status').textContent = "Firebase configuration missing. App will not save data.";
+            document.getElementById('loading-meals').textContent = "Cannot load data: Firebase config missing.";
+            document.getElementById('loading-schedule').textContent = "Cannot load data: Firebase config missing.";
+            document.getElementById('add-meal-btn').disabled = true;
+        }
+
+        if (auth) {
+            // Authentication and Data Subscription
+            onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    userId = user.uid;
+                    document.getElementById('auth-status').textContent = `User ID: ${userId} | Status: Ready`;
+
+                    // 1. Check for Share Code
+                    const shareCode = getShareCodeFromUrl();
+                    if (shareCode) {
+                        isSharedMode = true;
+                        schedulePath = `artifacts/${appId}/public/data/shared_schedules/${shareCode}`;
+                        initializeListeners(true);
+                        document.getElementById('share-code-display').textContent = shareCode;
+                        document.getElementById('share-info-container').classList.remove('hidden');
+                        document.getElementById('share-mode-info').classList.remove('hidden');
+                        document.getElementById('share-btn-text').textContent = "Update Shared Plan";
+                        const clearBtn = document.getElementById('clear-schedule-btn');
+                        if(clearBtn) clearBtn.classList.add('hidden'); 
+                        showNotification("You are viewing a shared meal plan. Changes affect all collaborators!", false);
+                    } else {
+                        isSharedMode = false;
+                        schedulePath = `artifacts/${appId}/users/${userId}/weekly_schedule/current`;
+                        initializeListeners(false);
+                        await getPrivateShareCode();
+                    }
+
+                    initializeScheduleGrid();
+
+                } else {
+                    // No user is signed in, perform sign-in
+                    try {
+                        if (initialAuthToken) {
+                            await signInWithCustomToken(auth, initialAuthToken);
+                        } else {
+                            await signInAnonymously(auth);
+                        }
+                    } catch (error) {
+                        console.error("Authentication failed:", error);
+                        document.getElementById('auth-status').textContent = `Authentication Error. User ID: Random | Status: Local`;
+                        userId = crypto.randomUUID();
+                        if (getShareCodeFromUrl()) {
+                            isSharedMode = true;
+                            schedulePath = `artifacts/${appId}/public/data/shared_schedules/${getShareCodeFromUrl()}`;
+                            initializeListeners(true);
+                        } else {
+                            schedulePath = `artifacts/${appId}/users/${userId}/weekly_schedule/current`;
+                            initializeListeners(false);
+                        }
+                        initializeScheduleGrid();
+                    }
+                }
+            });
+
+            // Initial authentication attempt
+            if (initialAuthToken) {
+                 signInWithCustomToken(auth, initialAuthToken)
+                    .catch(e => {
+                        console.error("Token sign in failed, signing in anonymously.", e);
+                        signInAnonymously(auth).catch(e => console.error("Anonymous sign in failed.", e));
+                    });
+            } else {
+                signInAnonymously(auth).catch(e => console.error("Anonymous sign in failed.", e));
+            }
+        }
+
+
+        // --- Firestore Utility Functions ---
+
+        const getMealIdeasCollectionRef = () => {
+            if (!db || !userId) throw new Error("Database or User ID not initialized.");
+            return collection(db, `artifacts/${appId}/users/${userId}/meal_ideas`);
+        };
+
+        const getWeeklyScheduleDocRef = () => {
+            if (!db || !schedulePath) throw new Error("Database or Schedule Path not initialized.");
+            return doc(db, schedulePath);
+        };
+
+        const getShareCodeDocRef = (code) => {
+            if (!db) throw new Error("Database not initialized.");
+            return doc(db, `artifacts/${appId}/public/data/share_codes/${code}`);
+        };
+
+        /** Initializes real-time listeners for data. */
+        function initializeListeners() {
+            // 1. Listen for Meal Ideas updates (Always private)
+            const qMeals = query(getMealIdeasCollectionRef());
+            onSnapshot(qMeals, (snapshot) => {
+                const loadingMealsEl = document.getElementById('loading-meals');
+                if (loadingMealsEl) {
+                    loadingMealsEl.classList.add('hidden');
+                }
+                mealIdeas = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a, b) => a.name.localeCompare(b.name));
+                renderMealIdeas();
+                renderMealSelector(); // Re-render selector when ideas change
+            }, (error) => {
+                console.error("Error listening to meal ideas:", error);
+                const loadingMealsEl = document.getElementById('loading-meals');
+                if (loadingMealsEl) {
+                    loadingMealsEl.textContent = "Error loading meals.";
+                }
+            });
+
+            // 2. Listen for Weekly Schedule updates (Path determined by schedulePath)
+            onSnapshot(getWeeklyScheduleDocRef(), (docSnapshot) => {
+                const loadingScheduleEl = document.getElementById('loading-schedule');
+                if (loadingScheduleEl) {
+                    loadingScheduleEl.classList.add('hidden');
+                }
+                weeklySchedule = docSnapshot.exists() ? docSnapshot.data() : {};
+                renderWeeklySchedule();
+            }, (error) => {
+                console.error("Error listening to weekly schedule:", error);
+                const loadingScheduleEl = document.getElementById('loading-schedule');
+                if (loadingScheduleEl) {
+                    loadingScheduleEl.textContent = "Error loading schedule.";
+                }
+            });
+        }
+
+
+        /** Looks up the existing share code for the user's private schedule. */
+        async function getPrivateShareCode() {
+            try {
+                // Check if this user's private schedule is already mapped to a share code
+                const privateScheduleRef = doc(db, `artifacts/${appId}/users/${userId}/weekly_schedule/current`);
+                const privateScheduleDoc = await getDoc(privateScheduleRef);
+                const existingCode = privateScheduleDoc.data()?.shareCode;
+                
+                if (existingCode) {
+                    document.getElementById('share-code-display').textContent = existingCode;
+                    document.getElementById('share-info-container').classList.remove('hidden');
+                    document.getElementById('share-btn-text').textContent = "Regenerate Share Code";
+                } else {
+                    document.getElementById('share-code-display').textContent = 'Private';
+                    document.getElementById('share-info-container').classList.remove('hidden');
+                    document.getElementById('share-btn-text').textContent = "Share My Schedule";
+                }
+            } catch (e) {
+                console.warn("Could not retrieve share code status:", e);
+            }
+        }
+
+
+        // --- Rendering Functions ---
+
+        /** Renders the list of meal ideas on the left pane. */
+        function renderMealIdeas() {
+            const listEl = document.getElementById('meal-ideas-list');
+            listEl.innerHTML = ''; // Clear existing list
+
+            if (mealIdeas.length === 0) {
+                listEl.innerHTML = '<p class="text-gray-500 text-center py-4 italic">No meal ideas yet! Add one above.</p>';
+                return;
+            }
+
+            mealIdeas.forEach(meal => {
+                const item = document.createElement('div');
+                item.className = 'flex justify-between items-center p-3 mb-2 bg-white border border-mama-secondary/30 rounded-lg shadow-sm';
+                item.innerHTML = `
+                    <span class="text-gray-800 font-medium truncate">${meal.name}</span>
+                    <button onclick="deleteMealIdea('${meal.id}')"
+                            title="Remove Idea"
+                            class="ml-3 text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-50 transition duration-150">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    </button>`;
+                listEl.appendChild(item);
+            });
+        }
+
+        /** Renders the options in the scheduling dropdown. */
+        function renderMealSelector() {
+            const selectorEl = document.getElementById('meal-selector');
+            const selectedValue = selectorEl.value; // Preserve current selection if possible
+            selectorEl.innerHTML = '<option value="">Select a meal to schedule...</option>';
+
+            mealIdeas.forEach(meal => {
+                const option = document.createElement('option');
+                option.value = meal.name;
+                option.textContent = meal.name;
+                if (meal.name === selectedValue) {
+                    option.selected = true;
+                }
+                selectorEl.appendChild(option);
+            });
+        }
+
+        /** Initializes the static grid structure for the week. */
+        function initializeScheduleGrid() {
+            const gridEl = document.getElementById('weekly-schedule-grid');
+            gridEl.innerHTML = '';
+            DAYS.forEach(day => {
+                const dayCard = document.createElement('div');
+                dayCard.id = `day-card-${day}`;
+                dayCard.className = 'flex flex-col p-3 bg-gray-50 border border-mama-neutral rounded-lg shadow-sm cursor-pointer hover:shadow-md transition duration-200';
+                dayCard.innerHTML = `
+                    <p class="text-xs font-semibold text-mama-primary uppercase mb-1">${day}</p>
+                    <div id="schedule-meal-${day}" class="flex-grow text-sm text-gray-800 font-medium min-h-[30px] flex items-center">
+                        <span class="text-gray-400 italic">Unscheduled</span>
+                    </div>
+                `;
+                if (auth.currentUser) {
+                    dayCard.onclick = () => scheduleMeal(day); // Attach click handler
+                } else {
+                    dayCard.classList.remove('cursor-pointer', 'hover:shadow-md');
+                }
+                gridEl.appendChild(dayCard);
+            });
+        }
+
+        /** Renders the current scheduled meals into the grid. */
+        function renderWeeklySchedule() {
+            DAYS.forEach(day => {
+                const mealName = weeklySchedule[day] || 'Unscheduled';
+                const mealDiv = document.getElementById(`schedule-meal-${day}`);
+                if (mealDiv) {
+                    mealDiv.innerHTML = `<span class="${mealName === 'Unscheduled' ? 'text-gray-400 italic' : 'text-gray-900'}">${mealName}</span>`;
+
+                    const dayCard = document.getElementById(`day-card-${day}`);
+                    if (dayCard) {
+                        // Apply special styling if a meal is scheduled
+                        if (mealName !== 'Unscheduled') {
+                            dayCard.classList.remove('bg-gray-50');
+                            dayCard.classList.add('bg-mama-light', 'border-mama-secondary');
+                        } else {
+                            dayCard.classList.remove('bg-mama-light', 'border-mama-secondary');
+                            dayCard.classList.add('bg-gray-50');
+                        }
+                    }
+                }
+            });
+        }
+
+        // --- Action Handlers (CRUD) ---
+
+        window.addMealIdea = async function() {
+            if (isSharedMode) {
+                showNotification("Cannot add new ideas while viewing a shared plan.", true);
+                return;
+            }
+
+            const inputEl = document.getElementById('new-meal-input');
+            const mealName = inputEl.value.trim();
+
+            if (!mealName) return;
+
+            if (mealIdeas.some(meal => meal.name.toLowerCase() === mealName.toLowerCase())) {
+                console.error(`"${mealName}" is already in the Idea Bank!`);
+                showNotification(`"${mealName}" is already in the Idea Bank!`, true);
+                return;
+            }
+
+            try {
+                if (!auth.currentUser) {
+                     console.error("User not authenticated for Firestore operation.");
+                     return;
+                }
+
+                await addDoc(getMealIdeasCollectionRef(), {
+                    name: mealName,
+                    created_at: serverTimestamp()
+                });
+                inputEl.value = ''; // Clear input
+                showNotification(`Added "${mealName}" to your Idea Bank!`);
+            } catch (e) {
+                console.error("Error adding document: ", e);
+                showNotification("Error adding meal idea.", true);
+            }
+        }
+
+        window.deleteMealIdea = async function(mealId) {
+            if (isSharedMode) {
+                showNotification("Cannot delete ideas while viewing a shared plan.", true);
+                return;
+            }
+            try {
+                if (!auth.currentUser) {
+                     console.error("User not authenticated for Firestore operation.");
+                     return;
+                }
+                await deleteDoc(doc(getMealIdeasCollectionRef(), mealId));
+                showNotification("Meal idea removed.");
+            } catch (e) {
+                console.error("Error removing document: ", e);
+                showNotification("Error deleting meal idea.", true);
+            }
+        }
+
+        window.scheduleMeal = async function(day) {
+            const selectorEl = document.getElementById('meal-selector');
+            const selectedMeal = selectorEl.value;
+            let newValue = selectedMeal;
+
+            if (selectedMeal === "") {
+                if (weeklySchedule[day]) {
+                    newValue = ''; // Clear the slot
+                } else {
+                    return; // Nothing to do
+                }
+            }
+
+            try {
+                if (!auth.currentUser) {
+                     console.error("User not authenticated for Firestore operation.");
+                     showNotification("Please ensure you are signed in to modify the schedule.", true);
+                     return;
+                }
+
+                const newSchedule = { ...weeklySchedule, [day]: newValue };
+                if (newValue === '') {
+                    delete newSchedule[day]; // Clean up empty slots for storage
+                }
+
+                await setDoc(getWeeklyScheduleDocRef(), newSchedule);
+                showNotification(`Scheduled ${newValue || 'Nothing'} for ${day}.`);
+            } catch (e) {
+                console.error("Error updating schedule: ", e);
+                showNotification("Error updating schedule.", true);
+            }
+        }
+
+        window.clearSchedule = async function() {
+            if (isSharedMode) {
+                showNotification("Clearing the schedule is disabled in shared viewing mode.", true);
+                return;
+            }
+            
+            console.log('User attempting to clear weekly meal plan.');
+
+            try {
+                if (!auth.currentUser) {
+                     console.error("User not authenticated for Firestore operation.");
+                     return;
+                }
+                
+                await setDoc(getWeeklyScheduleDocRef(), {});
+                weeklySchedule = {}; 
+                renderWeeklySchedule();
+                showNotification("Weekly schedule cleared!");
+            } catch (e) {
+                console.error("Error clearing schedule:", e);
+                showNotification("Error clearing schedule.", true);
+            }
+        }
+
+        // --- Shopping List Logic ---
+
+        /** Generates the shopping list based on the current weekly schedule. */
+        window.generateShoppingList = function() {
+            const meals = Object.values(weeklySchedule).filter(meal => meal && meal !== 'Unscheduled');
+            
+            if (meals.length === 0) {
+                showNotification("Schedule is empty. Add some meals first!", true);
+                document.getElementById('shopping-list-section').classList.add('hidden');
+                return;
+            }
+
+            const ingredientSet = new Set();
+            meals.forEach(meal => {
+                const lowerMeal = meal.toLowerCase();
+                let matched = false;
+                
+                // Check for keywords in the mock map
+                for (const keyword in MOCK_INGREDIENTS_MAP) {
+                    if (lowerMeal.includes(keyword)) {
+                        MOCK_INGREDIENTS_MAP[keyword].forEach(item => ingredientSet.add(item));
+                        matched = true;
+                        break;
+                    }
+                }
+
+                // Add a basic default ingredient if no specific match
+                if (!matched) {
+                    MOCK_INGREDIENTS_MAP['default'].forEach(item => ingredientSet.add(item));
+                }
+            });
+
+            // Convert set to array, sort, and store
+            currentShoppingListItems = Array.from(ingredientSet).sort();
+            renderShoppingList();
+            document.getElementById('shopping-list-section').classList.remove('hidden');
+            showNotification("Shopping list generated!");
+        }
+
+        /** Renders the shopping list to the UI and updates the copy buffer. */
+        function renderShoppingList() {
+            const listContentEl = document.getElementById('shopping-list-content');
+            listContentEl.innerHTML = '';
+            
+            let plainTextList = "Weekly Shopping List:\n\n";
+
+            if (currentShoppingListItems.length === 0) {
+                listContentEl.innerHTML = '<p class="text-gray-500 italic md:col-span-2">Your list is empty. Add an item or generate from your meal plan.</p>';
+                currentShoppingListText = "";
+                return;
+            }
+            
+            currentShoppingListItems.forEach((item, index) => {
+                const listItem = document.createElement('div');
+                listItem.className = 'flex items-center text-gray-700 space-x-2 p-2 bg-gray-50 rounded-lg shadow-inner';
+                listItem.innerHTML = `
+                    <input type="checkbox" class="w-5 h-5 text-mama-secondary rounded focus:ring-mama-secondary border-gray-300">
+                    <input type="text" value="${item}" 
+                           onchange="updateShoppingListItem(${index}, this.value)"
+                           class="flex-grow bg-transparent border-none focus:ring-0 focus:outline-none font-medium p-0 m-0">
+                    <button onclick="deleteShoppingListItem(${index})"
+                            class="text-red-400 hover:text-red-600 p-1 transition duration-150"
+                            title="Remove Item">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    </button>
+                `;
+                listContentEl.appendChild(listItem);
+                plainTextList += `- ${item}\n`;
+            });
+            
+            currentShoppingListText = plainTextList;
+        }
+
+        /** Updates an item in the shopping list array and re-renders. */
+        window.updateShoppingListItem = function(index, value) {
+            currentShoppingListItems[index] = value;
+            // Re-render to update the copy buffer text
+            renderShoppingList(); 
+        }
+
+        /** Removes an item from the shopping list array and re-renders. */
+        window.deleteShoppingListItem = function(index) {
+            currentShoppingListItems.splice(index, 1);
+            renderShoppingList();
+        }
+        
+        /** Adds a new, empty item to the shopping list array and re-renders. */
+        window.addEmptyShoppingListItem = function() {
+            currentShoppingListItems.push('New Custom Item');
+            renderShoppingList();
+            showNotification("Added new item to list.");
+        }
+
+
+        /** Copies the current shopping list (plain text) to the clipboard. */
+        window.copyShoppingList = function() {
+            if (!currentShoppingListText) {
+                showNotification("Generate a list before trying to copy.", true);
+                return;
+            }
+            
+            const dummy = document.createElement("textarea");
+            document.body.appendChild(dummy);
+            dummy.value = currentShoppingListText;
+            dummy.select();
+            document.execCommand("copy");
+            document.body.removeChild(dummy);
+
+            showNotification("Shopping List copied to clipboard!");
+        };
+
+        // --- Sharing Logic ---
+
+        window.generateShareCode = async function() {
+            try {
+                if (!auth.currentUser) {
+                    showNotification("You must be logged in to create a shareable link.", true);
+                    return;
+                }
+
+                let shareCode = document.getElementById('share-code-display').textContent;
+                
+                if (shareCode === 'Private' || shareCode === '---' || document.getElementById('share-mode-info').classList.contains('hidden') === false) {
+                    
+                    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+                    shareCode = Array.from({length: 6}, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+                    
+                    const publicScheduleDocRef = doc(db, `artifacts/${appId}/public/data/shared_schedules/${shareCode}`);
+                    await setDoc(publicScheduleDocRef, { ...weeklySchedule, createdBy: userId });
+
+                    const privateScheduleRef = doc(db, `artifacts/${appId}/users/${userId}/weekly_schedule/current`);
+                    await updateDoc(privateScheduleRef, { shareCode: shareCode });
+                    
+                    document.getElementById('share-code-display').textContent = shareCode;
+                    document.getElementById('share-info-container').classList.remove('hidden');
+                    document.getElementById('share-btn-text').textContent = "Regenerate Share Code";
+                    showNotification("New Share Code generated and copied to clipboard!", false);
+                }
+                
+                copyShareCode();
+
+            } catch (e) {
+                console.error("Error generating share code:", e);
+                showNotification("Error generating share code. Please try again.", true);
+            }
+        }
+
+        window.copyShareCode = function() {
+            const code = document.getElementById('share-code-display').textContent;
+            if (code === 'Private' || code === '---') {
+                showNotification("No active share code to copy.", true);
+                return;
+            }
+
+            const dummy = document.createElement("textarea");
+            document.body.appendChild(dummy);
+            dummy.value = code;
+            dummy.select();
+            document.execCommand("copy");
+            document.body.removeChild(dummy);
+
+            showNotification(`Share Code '${code}' copied!`);
+        };
+
+
+    </script>
+</body>
+</html>
